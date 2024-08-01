@@ -1,0 +1,58 @@
+---
+title: "Artificial Neural Networks"
+output: pdf_document
+date: "2024-08-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+
+```{r}
+# Install the necessary packages for neural networks and data manipulation
+install.packages(c('neuralnet', 'keras', 'tensorflow'), dependencies = TRUE)
+install.packages("tidyverse")
+
+# Load the required libraries
+library(neuralnet)
+library(tidyverse)
+
+# Prepare the iris dataset by converting any character columns to factors
+iris <- iris %>% mutate_if(is.character, as.factor)
+summary(iris)  # Display summary statistics of the dataset
+
+# Split the data into training and test sets
+set.seed(254)  # Set seed for reproducibility
+data_rows <- floor(0.80 * nrow(iris))  # Calculate the number of rows for the training set
+train_indices <- sample(c(1:nrow(iris)), data_rows)  # Randomly sample indices for the training set
+train_data <- iris[train_indices, ]  # Create the training dataset
+test_data <- iris[-train_indices, ]  # Create the test dataset
+
+# Train a neural network model
+# Define the formula and structure of the neural network
+model <- neuralnet(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width, 
+                   data = train_data, hidden = c(4, 2), linear.output = FALSE)
+
+# Visualize the trained neural network model
+plot(model, rep = 'best')
+
+# Predict the species for the test dataset
+pred <- predict(model, test_data)
+
+# Map the predictions to species labels
+labels <- c("setosa", "versicolor", "virginica")
+prediction_label <- data.frame(max.col(pred)) %>%
+  mutate(pred = labels[max.col.pred.]) %>%
+  select(2) %>%
+  unlist()
+
+# Generate a confusion matrix to compare predicted and actual species
+table(test_data$Species, prediction_label)
+
+# Calculate the accuracy of the model
+check <- as.numeric(test_data$Species) == max.col(pred)  # Compare predictions to actual species
+accuracy <- (sum(check) / nrow(test_data)) * 100  # Calculate the accuracy percentage
+accuracy  # Print the accuracy
+
+```

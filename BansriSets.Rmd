@@ -1,0 +1,83 @@
+---
+title: "Tamburo ANN"
+output: pdf_document
+date: "2024-08-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+
+```{r}
+# Install and load required packages
+install.packages(c('neuralnet', 'keras', 'tensorflow'), dependencies = TRUE)
+install.packages("tidyverse")
+install.packages("cowplot")
+
+library(neuralnet)
+library(tidyverse)
+library(cowplot)
+
+# Prepare the iris dataset
+iris <- iris %>% mutate_if(is.character, as.factor)
+summary(iris)
+
+# Set the seed and split the data into training and test sets
+set.seed(254)
+data_rows <- floor(0.80 * nrow(iris))
+train_indices <- sample(c(1:nrow(iris)), data_rows)
+train_data <- iris[train_indices, ]
+test_data <- iris[-train_indices, ]
+
+# Define a function to train and evaluate the neural network model
+train_and_evaluate <- function(hidden_layers) {
+  model <- neuralnet(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width, 
+                     data = train_data, hidden = hidden_layers, linear.output = FALSE)
+  pred <- predict(model, test_data)
+  labels <- c("setosa", "versicolor", "virginica")
+  prediction_label <- data.frame(max.col(pred)) %>%
+    mutate(pred = labels[max.col(pred)]) %>%
+    select(pred) %>%
+    unlist()
+  check <- as.numeric(test_data$Species) == max.col(pred)
+  accuracy <- (sum(check) / nrow(test_data)) * 100
+  list(model = model, accuracy = accuracy)
+}
+
+# Train and evaluate models with different hidden layer configurations
+hidden_layers_list <- list(c(5, 3), c(20, 10), c(35, 15))
+results <- data.frame(Hidden_Layers = character(), Accuracy = numeric(), stringsAsFactors = FALSE)
+models <- list()
+
+for (hidden_layers in hidden_layers_list) {
+  result <- train_and_evaluate(hidden_layers)
+  models <- c(models, list(result$model))
+  results <- rbind(results, data.frame(Hidden_Layers = paste(hidden_layers, collapse = ", "), Accuracy = result$accuracy))
+}
+
+# Create plots for the models
+model_plots <- lapply(1:length(models), function(i) {
+  plot(models[[i]], rep = 'best', main = paste("Model:", paste(hidden_layers_list[[i]], collapse = ", "), "\nAccuracy:", round(results$Accuracy[i], 2), "%"))
+})
+
+# Plot the accuracy bar graph
+accuracy_plot <- ggplot(results, aes(x = Hidden_Layers, y = Accuracy)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Accuracy of Neural Network Models", x = "Hidden Layers", y = "Accuracy (%)") +
+  theme_minimal()
+
+# Print the accuracy of the models
+print(results)
+
+# Combine the model plots and accuracy plot using cowplot
+top_row <- plot_grid(plotlist = model_plots, nrow = 1)
+bottom_row <- plot_grid(accuracy_plot)
+final_plot <- plot_grid(top_row, bottom_row, ncol = 1, rel_heights = c(2, 1))
+
+# Display the final combined plot
+print(final_plot)
+
+
+
+```
